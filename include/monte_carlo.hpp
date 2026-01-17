@@ -12,6 +12,11 @@ namespace montecarlo
         double price{0.0};
         double std_error{0.0};
         std::size_t samples{0};
+
+        // Confidence interval
+        double ci_lower{0.0};
+        double ci_upper{0.0};
+        double confidence_level{0.95};
     };
 
     class MonteCarloPricer
@@ -24,7 +29,8 @@ namespace montecarlo
                                   double r,
                                   double sigma,
                                   double T,
-                                  std::size_t n_paths);
+                                  std::size_t n_paths,
+                                  double confidence_level = 0.95);
 
     private:
         RNG &rng_;

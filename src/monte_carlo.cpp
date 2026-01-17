@@ -15,7 +15,8 @@ namespace montecarlo
                                                 double r,
                                                 double sigma,
                                                 double T,
-                                                std::size_t n_paths)
+                                                std::size_t n_paths,
+                                                double confidence_level)
     {
         PricingResult result;
         result.samples = n_paths;
@@ -41,6 +42,7 @@ namespace montecarlo
 
         double mean = sum / static_cast<double>(n_paths);
         result.price = mean;
+        result.confidence_level = confidence_level;
 
         if (n_paths > 1)
         {
@@ -54,6 +56,21 @@ namespace montecarlo
             result.std_error = std::numeric_limits<double>::infinity();
         }
 
+        double z = 1.96;
+        if (std::abs(confidence_level - 0.90) < 1e-12)
+            z = 1.645;
+        else if (std::abs(confidence_level - 0.95) < 1e-12)
+            z = 1.96;
+        else if (std::abs(confidence_level - 0.99) < 1e-12)
+            z = 2.576;
+        if (!(confidence_level > 0.0 && confidence_level < 1.0))
+        {
+            z = 1.96;
+            result.confidence_level = 0.95;
+        }
+
+        result.ci_lower = mean - z * result.std_error;
+        result.ci_upper = mean + z * result.std_error;
         return result;
     }
 }

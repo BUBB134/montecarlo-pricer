@@ -37,9 +37,14 @@ namespace montecarlo
         double call_bs = black_scholes_call_price(S0, K, r, sigma, T);
         double put_bs = black_scholes_put_price(S0, K, r, sigma, T);
 
+        double conf = 0.95;
+
+        std::cout << std::fixed << std::setprecision(6);
         std::cout << "Call (MC):  " << call_result.price << "  std.err " << call_result.std_error
+                  << "  CI(" << (conf * 100.0) << "%)=[" << call_result.ci_lower << ", " << call_result.ci_upper << "]"
                   << "    Call (BS): " << call_bs << "\n";
         std::cout << "Put  (MC):  " << put_result.price << "  std.err " << put_result.std_error
+                  << "  CI(" << (conf * 100.0) << "%)=[" << put_result.ci_lower << ", " << put_result.ci_upper << "]"
                   << "    Put  (BS): " << put_bs << "\n";
     }
 }
