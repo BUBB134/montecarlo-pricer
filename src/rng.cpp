@@ -28,5 +28,11 @@ namespace montecarlo{
             out.push_back(normal_dist_(engine_));
         }
         return out;
-}
+    }
+
+    void RNG::normal_batch(double* out, std::size_t n){
+        for (std::size_t i = 0; i < n; ++i) {
+            out[i] = normal_dist_(engine_);
+        }
+    }
 }

@@ -20,6 +20,9 @@ namespace montecarlo
 
         std::vector<double> normal_vector(std::size_t n);
 
+        // Batch generation for SIMD-friendly processing
+        void normal_batch(double* out, std::size_t n);
+
     private:
         std::mt19937_64 engine_;
         std::uniform_real_distribution<double> uniform_dist_;

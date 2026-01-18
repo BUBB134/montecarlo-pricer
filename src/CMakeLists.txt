@@ -10,3 +10,5 @@ add_executable(montecarlo_pricer
 target_include_directories(montecarlo_pricer PRIVATE
     ${CMAKE_SOURCE_DIR}/include
 )
+
+target_link_libraries(montecarlo_pricer PRIVATE Threads::Threads)
