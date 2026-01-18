@@ -13,4 +13,33 @@ endif()
 
 find_package(Threads REQUIRED)
 
-add_subdirectory(src)
+# Check if building Python bindings
+if(SKBUILD)
+    # Building with scikit-build-core for Python
+    find_package(pybind11 CONFIG REQUIRED)
+    
+    # Create a library with the core functionality
+    add_library(montecarlo_core STATIC
+        src/rng.cpp
+        src/payoff.cpp
+        src/monte_carlo.cpp
+        src/bs_analytical.cpp
+        src/path_simulator.cpp
+    )
+    
+    target_include_directories(montecarlo_core PUBLIC
+        ${CMAKE_SOURCE_DIR}/include
+    )
+    
+    target_link_libraries(montecarlo_core PUBLIC Threads::Threads)
+    
+    # Python module
+    pybind11_add_module(montecarlo_pricer bindings/bindings.cpp)
+    target_link_libraries(montecarlo_pricer PRIVATE montecarlo_core)
+    
+    # Installation
+    install(TARGETS montecarlo_pricer LIBRARY DESTINATION .)
+else()
+    # Building standalone C++ executable
+    add_subdirectory(src)
+endif()

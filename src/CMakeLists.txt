@@ -1,4 +1,4 @@
-add_executable(montecarlo_pricer
+add_executable(mc_pricer_cli
     main.cpp
     rng.cpp
     payoff.cpp
@@ -7,8 +7,8 @@ add_executable(montecarlo_pricer
     path_simulator.cpp
 )
 
-target_include_directories(montecarlo_pricer PRIVATE
+target_include_directories(mc_pricer_cli PRIVATE
     ${CMAKE_SOURCE_DIR}/include
 )
 
-target_link_libraries(montecarlo_pricer PRIVATE Threads::Threads)
+target_link_libraries(mc_pricer_cli PRIVATE Threads::Threads)
