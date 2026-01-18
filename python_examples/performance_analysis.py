@@ -216,9 +216,9 @@ class PerformanceAnalyzer:
                 'std_error': result.std_error,
                 'vr_factor': vr_factor,
                 'time': elapsed,
-                'control_beta': result.control_beta if use_cv else None,
-                'variance_reduction_factor': result.variance_reduction_factor if use_cv else None,
-                'control_expectation': result.control_payoff_analytical if use_cv else None
+                'control_beta': getattr(result, 'control_beta', None) if use_cv else None,
+                'variance_reduction_factor': getattr(result, 'variance_reduction_factor', None) if use_cv else None,
+                'control_expectation': getattr(result, 'control_payoff_analytical', None) if use_cv else None
             })
             
             print(f"{name:<28} {result.price:<12.6f} {error:<12.6f} {result.std_error:<12.6f} "
@@ -226,10 +226,13 @@ class PerformanceAnalyzer:
             
             # Show control variate diagnostics
             if use_cv and result.control_variate_used:
-                print(f"  {'└─ Control variate:':<28} β={result.control_beta:.2f}, "
-                      f"E[Control]={result.control_payoff_analytical:.6f}, "
-                      f"Var.Red.={result.variance_reduction_factor:.2f}x")
-                print(f"  {'   Note:':<28} β=1.0 means SANITY CHECK (not true variance reduction)")
+                if hasattr(result, 'control_beta') and hasattr(result, 'variance_reduction_factor'):
+                    print(f"  {'└─ Control variate:':<28} β={result.control_beta:.2f}, "
+                          f"E[Control]={getattr(result, 'control_payoff_analytical', 0.0):.6f}, "
+                          f"Var.Red.={result.variance_reduction_factor:.2f}x")
+                    print(f"  {'   Note:':<28} β=1.0 means SANITY CHECK (not true variance reduction)")
+                else:
+                    print(f"  {'└─ Control variate:':<28} Enabled (rebuild module for diagnostics)")
         
         print("\n" + "-" * 92)
         best = min(self.results['variance_reduction'], key=lambda x: x['std_error'])
