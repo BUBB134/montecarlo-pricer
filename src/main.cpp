@@ -3,6 +3,7 @@
 #include "payoff.hpp"
 #include "monte_carlo.hpp"
 #include "bs_analytical.hpp"
+#include "timer.hpp"
 
 #include <chrono>
 #include <iostream>
@@ -122,33 +123,76 @@ namespace montecarlo
             return result;
         };
 
-        std::cout << "\n======== Threading Benchmark ========\n";
-        std::cout << "Paths: " << format_number(n_paths) << "\n\n";
+        // Format large numbers with K/M/B suffixes
+        auto format_metric = [](double value) -> std::string {
+            if (value >= 1e9) {
+                return std::to_string(static_cast<int>(value / 1e9)) + "." +
+                       std::to_string(static_cast<int>((value / 1e8)) % 10) + "B";
+            } else if (value >= 1e6) {
+                return std::to_string(static_cast<int>(value / 1e6)) + "." +
+                       std::to_string(static_cast<int>((value / 1e5)) % 10) + "M";
+            } else if (value >= 1e3) {
+                return std::to_string(static_cast<int>(value / 1e3)) + "." +
+                       std::to_string(static_cast<int>((value / 1e2)) % 10) + "K";
+            } else {
+                return std::to_string(static_cast<int>(value));
+            }
+        };
+
+        std::cout << "\n======== Monte Carlo Pricer Benchmark ========\n";
+        std::cout << "Paths: " << format_number(n_paths) << "\n";
+        std::cout << "===============================================\n\n";
 
         // Benchmark single thread
-        auto start = std::chrono::high_resolution_clock::now();
+        Timer timer_1;
         auto result_1 = pricer.price_by_mc_parallel(*call_payoff, S0, r, sigma, T, n_paths,
                                                      0.95, true, false, nullptr, 0.0, 1);
-        auto end = std::chrono::high_resolution_clock::now();
-        auto duration_1 = std::chrono::duration<double>(end - start).count();
+        double time_1 = timer_1.elapsed_seconds();
 
-        std::cout << "Threads: 1  -> " << std::fixed << std::setprecision(2) << duration_1 << "s\n";
+        BenchmarkResult bench_1;
+        bench_1.time_seconds = time_1;
+        bench_1.num_paths = n_paths;
+        bench_1.num_threads = 1;
+        bench_1.compute_metrics();
+
+        std::cout << "Threads: 1\n";
+        std::cout << "  Time:       " << std::fixed << std::setprecision(3) << time_1 << "s\n";
+        std::cout << "  Throughput: " << format_metric(bench_1.paths_per_second) << " paths/sec\n";
+        std::cout << "  Latency:    " << std::fixed << std::setprecision(2) 
+                  << bench_1.nanoseconds_per_path << " ns/path\n";
+        std::cout << "  Price:      " << std::fixed << std::setprecision(6) << result_1.price << "\n\n";
 
         // Benchmark multiple threads
-        start = std::chrono::high_resolution_clock::now();
+        Timer timer_multi;
         auto result_multi = pricer.price_by_mc_parallel(*call_payoff, S0, r, sigma, T, n_paths,
                                                          0.95, true, false, nullptr, 0.0, max_threads);
-        end = std::chrono::high_resolution_clock::now();
-        auto duration_multi = std::chrono::duration<double>(end - start).count();
+        double time_multi = timer_multi.elapsed_seconds();
 
-        double speedup = duration_1 / duration_multi;
-        std::cout << "Threads: " << max_threads << " -> " << std::fixed << std::setprecision(2) 
-                  << duration_multi << "s (" << std::fixed << std::setprecision(1) 
-                  << speedup << "x speedup)\n";
+        BenchmarkResult bench_multi;
+        bench_multi.time_seconds = time_multi;
+        bench_multi.num_paths = n_paths;
+        bench_multi.num_threads = max_threads;
+        bench_multi.compute_metrics();
 
-        // Verify results are consistent
-        std::cout << "\nPrice (1 thread):  " << std::fixed << std::setprecision(6) << result_1.price << "\n";
-        std::cout << "Price (" << max_threads << " threads): " << std::fixed << std::setprecision(6) << result_multi.price << "\n";
+        double speedup = time_1 / time_multi;
+        double efficiency = speedup / static_cast<double>(max_threads) * 100.0;
+
+        std::cout << "Threads: " << max_threads << "\n";
+        std::cout << "  Time:       " << std::fixed << std::setprecision(3) << time_multi << "s\n";
+        std::cout << "  Throughput: " << format_metric(bench_multi.paths_per_second) << " paths/sec\n";
+        std::cout << "  Latency:    " << std::fixed << std::setprecision(2) 
+                  << bench_multi.nanoseconds_per_path << " ns/path\n";
+        std::cout << "  Price:      " << std::fixed << std::setprecision(6) << result_multi.price << "\n";
+        std::cout << "  Speedup:    " << std::fixed << std::setprecision(2) << speedup << "x\n";
+        std::cout << "  Efficiency: " << std::fixed << std::setprecision(1) << efficiency << "%\n\n";
+
+        // Summary comparison
+        std::cout << "===============================================\n";
+        std::cout << "Performance Improvement:\n";
+        std::cout << "  Throughput: " << std::fixed << std::setprecision(2) 
+                  << (bench_multi.paths_per_second / bench_1.paths_per_second) << "x faster\n";
+        std::cout << "  Latency:    " << std::fixed << std::setprecision(2) 
+                  << (bench_1.nanoseconds_per_path / bench_multi.nanoseconds_per_path) << "x lower\n";
     }
 }
 
