@@ -268,8 +268,3 @@ python python_examples/benchmark.py
 - **pybind11**: (for Python bindings)
 - **Threading**: POSIX threads (Linux/Mac) or Windows threads
 
----
-
-## License
-
-[Your License Here]
