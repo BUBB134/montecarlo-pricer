@@ -228,6 +228,8 @@ PYBIND11_MODULE(montecarlo_pricer, m)
         .def_readwrite("control_payoff_mc", &PricingResult::control_payoff_mc, "Control variate MC value")
         .def_readwrite("control_payoff_analytical", &PricingResult::control_payoff_analytical, "Control variate analytical value")
         .def_readwrite("control_variate_used", &PricingResult::control_variate_used, "Was control variate used")
+        .def_readwrite("control_beta", &PricingResult::control_beta, "Control variate β coefficient")
+        .def_readwrite("variance_reduction_factor", &PricingResult::variance_reduction_factor, "Variance reduction factor")
         .def("__repr__", [](const PricingResult &r) {
             return "PricingResult(price=" + std::to_string(r.price) + 
                    ", std_error=" + std::to_string(r.std_error) +

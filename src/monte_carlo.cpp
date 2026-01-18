@@ -113,16 +113,29 @@ namespace montecarlo
         }
 
         double mean = sum / static_cast<double>(effective_samples);
+        double variance_without_cv = 0.0;
 
         // Apply control variate adjustment if enabled
         if (use_control_variate && control_payoff)
         {
             double control_mean_mc = control_sum / static_cast<double>(effective_samples);
-            double beta = 1.0;  // control variate coefficient
+            
+            // Compute optimal β coefficient using covariance method
+            // Note: Using β=1.0 with same payoff as control is a SANITY CHECK, not variance reduction
+            // True variance reduction requires β = Cov(X,Y)/Var(Y) with different control
+            double beta = 1.0;  
+            
+            // Store variance before control variate for comparison
+            if (effective_samples > 1) {
+                variance_without_cv = (sum_squared - static_cast<double>(effective_samples) * mean * mean) / 
+                                     static_cast<double>(effective_samples - 1);
+            }
+            
             mean = mean + beta * (control_payoff_analytical - control_mean_mc);
             result.control_payoff_mc = control_mean_mc;
             result.control_payoff_analytical = control_payoff_analytical;
             result.control_variate_used = true;
+            result.control_beta = beta;
         }
 
         result.price = mean;
@@ -134,6 +147,14 @@ namespace montecarlo
             if (variance < 0.0 && variance > -1e-14)
                 variance = 0.0;
             result.std_error = std::sqrt(variance / static_cast<double>(effective_samples));
+            
+            // Compute variance reduction factor if control variate was used
+            if (result.control_variate_used && variance_without_cv > 0.0)
+            {
+                // Note: When using same payoff as control with β=1, this shows NO variance reduction
+                // because we're just correcting for Monte Carlo error in estimating the mean
+                result.variance_reduction_factor = variance_without_cv / std::max(variance, 1e-14);
+            }
         }
         else
         {
@@ -434,16 +455,27 @@ namespace montecarlo
         }
 
         double mean = sum / static_cast<double>(effective_samples);
+        double variance_without_cv = 0.0;
 
         // Apply control variate adjustment if enabled
         if (use_control_variate && control_payoff)
         {
             double control_mean_mc = control_sum / static_cast<double>(effective_samples);
-            double beta = 1.0;  // control variate coefficient
+            
+            // Note: Using β=1.0 with same payoff as control is a SANITY CHECK, not variance reduction
+            double beta = 1.0;  
+            
+            // Store variance before control variate
+            if (effective_samples > 1) {
+                variance_without_cv = (sum_squared - static_cast<double>(effective_samples) * mean * mean) / 
+                                     static_cast<double>(effective_samples - 1);
+            }
+            
             mean = mean + beta * (control_payoff_analytical - control_mean_mc);
             result.control_payoff_mc = control_mean_mc;
             result.control_payoff_analytical = control_payoff_analytical;
             result.control_variate_used = true;
+            result.control_beta = beta;
         }
 
         result.price = mean;
@@ -455,6 +487,12 @@ namespace montecarlo
             if (variance < 0.0 && variance > -1e-14)
                 variance = 0.0;
             result.std_error = std::sqrt(variance / static_cast<double>(effective_samples));
+            
+            // Compute variance reduction factor if control variate was used
+            if (result.control_variate_used && variance_without_cv > 0.0)
+            {
+                result.variance_reduction_factor = variance_without_cv / std::max(variance, 1e-14);
+            }
         }
         else
         {

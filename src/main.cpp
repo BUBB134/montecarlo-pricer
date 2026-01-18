@@ -76,10 +76,15 @@ namespace montecarlo
                   << "  CI(" << (conf * 100.0) << "%)=[" << put_result_cv.ci_lower << ", " << put_result_cv.ci_upper << "]"
                   << "    Put  (BS): " << put_bs << "\n";
         if (call_result_cv.control_variate_used) {
-            std::cout << "  Call control adjustment: " << (call_bs - call_result_cv.control_payoff_mc) << "\n";
+            std::cout << "  Call control: β=" << call_result_cv.control_beta 
+                      << ", E[Control]=" << call_result_cv.control_payoff_analytical
+                      << ", Var.Red.=" << call_result_cv.variance_reduction_factor << "x\n";
+            std::cout << "  Note: β=1.0 means SANITY CHECK (using same payoff as control, not true variance reduction)\n";
         }
         if (put_result_cv.control_variate_used) {
-            std::cout << "  Put control adjustment: " << (put_bs - put_result_cv.control_payoff_mc) << "\n";
+            std::cout << "  Put control: β=" << put_result_cv.control_beta 
+                      << ", E[Control]=" << put_result_cv.control_payoff_analytical
+                      << ", Var.Red.=" << put_result_cv.variance_reduction_factor << "x\n";
         }
 
         std::cout << "\n======== No Antithetic Variates ========\n";

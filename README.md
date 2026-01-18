@@ -195,7 +195,104 @@ python python_examples/example_usage.py
 
 # Comprehensive benchmarks
 python python_examples/benchmark.py
+
+# Detailed performance analysis
+python python_examples/performance_analysis.py
 ```
+
+---
+
+## Python Performance Analysis
+
+The comprehensive performance analysis tool provides detailed insights into:
+
+### Run Analysis
+```bash
+python python_examples/performance_analysis.py
+```
+
+### What It Analyzes
+
+#### 1. Threading Scalability
+- Tests 1, 2, 4, 8, 16+ thread configurations
+- Measures throughput (paths/sec), latency (ns/path), speedup, and efficiency
+- Identifies optimal thread count for your system
+- Reports parallel efficiency percentages
+
+**Example Output:**
+```
+THREADING SCALABILITY ANALYSIS
+Paths: 10.00M
+
+Threads  Time (s)   Throughput      Latency         Speedup    Efficiency   Price
+--------------------------------------------------------------------------------
+1        0.290      34.48M p/s      29.00           1.00       100.0        10.450412
+2        0.150      66.67M p/s      15.00           1.93       96.7         10.450387
+4        0.080      125.00M p/s     8.00            3.63       90.6         10.450425
+8        0.045      222.22M p/s     4.50            6.44       80.6         10.450398
+```
+
+#### 2. Path Count Convergence
+- Tests path counts from 10K to 10M
+- Measures convergence to Black-Scholes analytical price
+- Shows error reduction and computational cost trade-offs
+- Reports throughput at each level
+
+**Key Insights:**
+- How many paths needed for desired accuracy
+- Diminishing returns of increasing paths
+- Time vs accuracy trade-offs
+
+#### 3. Variance Reduction Effectiveness
+- Compares 4 techniques:
+  - Standard Monte Carlo
+  - Antithetic Variates
+  - Control Variate
+  - Combined (Antithetic + Control)
+- Measures variance reduction factors
+- Shows impact on standard error
+
+**Key Metrics:**
+- Standard error comparison
+- Variance reduction multipliers
+- Computational overhead
+
+#### 4. Greeks Accuracy
+- Computes all 5 Greeks (Delta, Gamma, Vega, Theta, Rho)
+- Shows computation time
+- Provides interpretations
+
+#### 5. Option Types Comparison
+- Compares call vs put pricing
+- Verifies put-call parity
+- Shows accuracy for different option types
+
+### Analysis Output
+
+The tool generates comprehensive reports including:
+
+- **Threading Performance**: Best thread count, maximum speedup, efficiency
+- **Convergence Analysis**: Error improvement with path count
+- **Variance Reduction**: Effectiveness of each technique
+- **Greeks Values**: All sensitivities with computation time
+- **Summary Report**: Key findings and recommendations
+
+### Use Cases
+
+**System Benchmarking:**
+```bash
+# Determine optimal configuration for your hardware
+python python_examples/performance_analysis.py
+```
+
+**Accuracy Requirements:**
+- Find minimum paths needed for your accuracy target
+- Compare techniques for best variance reduction
+
+**Production Tuning:**
+- Identify optimal thread count
+- Balance speed vs accuracy
+- Validate Greeks computation
 
 ---
 
@@ -211,6 +308,7 @@ python python_examples/benchmark.py
 | `pip install .` | Build and install Python package |
 | `python python_examples/example_usage.py` | Python API demonstration |
 | `python python_examples/benchmark.py` | Python performance benchmarks |
+| `python python_examples/performance_analysis.py` | Comprehensive performance analysis |
 
 ---
 

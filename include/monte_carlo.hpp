@@ -23,6 +23,8 @@ namespace montecarlo
         double control_payoff_mc{0.0};
         double control_payoff_analytical{0.0};
         bool control_variate_used{false};
+        double control_beta{0.0};  // Optimal β coefficient
+        double variance_reduction_factor{1.0};  // Achieved variance reduction
     };
 
     class MonteCarloPricer
