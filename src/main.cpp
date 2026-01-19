@@ -6,14 +6,69 @@
 #include "timer.hpp"
 
 #include <chrono>
+#include <cmath>
 #include <iostream>
 #include <iomanip>
+#include <fstream>
 #include <memory>
 #include <string>
 #include <thread>
 
 namespace montecarlo
 {
+    void dump_terminal_samples(std::size_t n_paths, const std::string &out_path, uint64_t seed)
+    {
+        const std::size_t MAX_SAMPLES = 50'000;
+        if (n_paths > MAX_SAMPLES)
+        {
+            std::cout << "Capping sample size to " << MAX_SAMPLES << " (requested " << n_paths << ")\n";
+            n_paths = MAX_SAMPLES;
+        }
+
+        if (seed == 0)
+        {
+            seed = static_cast<uint64_t>(
+                std::chrono::high_resolution_clock::now().time_since_epoch().count());
+        }
+
+        RNG rng(seed);
+
+        double S0 = 100.0;
+        double K = 100.0;
+        double r = 0.05;
+        double sigma = 0.2;
+        double T = 1.0;
+        double discount = std::exp(-r * T);
+
+        auto call_payoff = make_call(K);
+
+        std::ofstream ofs(out_path, std::ios::trunc);
+        if (!ofs)
+        {
+            std::cerr << "Failed to open output file: " << out_path << "\n";
+            return;
+        }
+
+        ofs << "ST,payoff,discounted_payoff\n";
+
+        const double drift = (r - 0.5 * sigma * sigma) * T;
+        const double diffusion_scale = sigma * std::sqrt(T);
+
+        for (std::size_t i = 0; i < n_paths; ++i)
+        {
+            double Z = rng.normal();
+            double ST = S0 * std::exp(drift + diffusion_scale * Z);
+            double payoff = (*call_payoff)(ST);
+            double disc_payoff = discount * payoff;
+
+            ofs << ST << ',' << payoff << ',' << disc_payoff << '\n';
+        }
+
+        std::cout << "Dumped " << n_paths << " samples to " << out_path
+                  << " (S0=" << S0 << ", K=" << K << ", r=" << r
+                  << ", sigma=" << sigma << ", T=" << T << ")\n";
+    }
+
     void run_demo(std::size_t n_paths, uint64_t seed)
     {
         if (seed == 0)
@@ -206,39 +261,58 @@ int main(int argc, char **argv)
     std::size_t n_paths = 100'000;
     uint64_t seed = 0;
     bool run_bench = false;
+    bool dump_mode = false;
+    std::size_t dump_samples = 0;
+    std::string dump_out = "st.csv";
 
-    if (argc > 1)
+    // Basic argument parsing
+    for (int i = 1; i < argc; ++i)
     {
-        try
+        std::string arg = argv[i];
+        if (arg == "--benchmark" || arg == "-b")
         {
-            std::string arg = argv[1];
-            if (arg == "--benchmark" || arg == "-b")
+            run_bench = true;
+            if (i + 1 < argc)
             {
-                run_bench = true;
-                // Check if second arg is path count
-                if (argc > 2)
-                {
-                    n_paths = static_cast<std::size_t>(std::stoull(argv[2]));
-                }
-            }
-            else
-            {
-                n_paths = static_cast<std::size_t>(std::stoull(argv[1]));
+                try { n_paths = static_cast<std::size_t>(std::stoull(argv[i + 1])); ++i; } catch (...) {}
             }
         }
-        catch (...)
+        else if (arg == "--dump-st")
         {
+            dump_mode = true;
+            if (i + 1 < argc)
+            {
+                try { dump_samples = static_cast<std::size_t>(std::stoull(argv[i + 1])); ++i; } catch (...) {}
+            }
+            if (dump_samples == 0)
+                dump_samples = 50'000;
+        }
+        else if (arg == "--out")
+        {
+            if (i + 1 < argc)
+            {
+                dump_out = argv[i + 1];
+                ++i;
+            }
+        }
+        else if (arg == "--seed")
+        {
+            if (i + 1 < argc)
+            {
+                try { seed = static_cast<uint64_t>(std::stoull(argv[i + 1])); ++i; } catch (...) {}
+            }
+        }
+        else
+        {
+            try { n_paths = static_cast<std::size_t>(std::stoull(arg)); }
+            catch (...) {}
         }
     }
-    if (argc > 2 && !run_bench)
+
+    if (dump_mode)
     {
-        try
-        {
-            seed = static_cast<uint64_t>(std::stoull(argv[2]));
-        }
-        catch (...)
-        {
-        }
+        montecarlo::dump_terminal_samples(dump_samples, dump_out, seed);
+        return 0;
     }
 
     if (run_bench)
