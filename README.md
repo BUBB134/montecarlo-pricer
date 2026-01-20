@@ -4,6 +4,21 @@ High-performance Monte Carlo option pricer in C++ with multi-threading, SIMD, va
 Designed to explore performance, numerical stability, and scalability of Monte Carlo methods.
 
 ## System Design
+
+### System Overview
+This project implements a high-performance Monte Carlo option pricer in C++ with a CLI frontend and Python bindings (pybind11).
+The core pricer simulates **terminal prices only** using the closed-form GBM solution (no timestep discretization), making it ideal
+for performance benchmarking, variance reduction experiments, and parallel scaling studies.
+
+Key design points:
+- **Two frontends**: a C++ CLI for demos/benchmarks and a Python API for analysis workflows.
+- **Parallel execution**: each pricing call spawns `std::thread` workers and partitions paths across threads.
+- **SIMD-friendly inner loop**: paths are simulated in fixed-size batches (e.g. 64) using a structure-of-arrays layout to encourage
+  compiler auto-vectorization (e.g. AVX2 via `-march=native` / `/arch:AVX2`).
+- **Variance reduction**: antithetic variates and a **Black–Scholes control variate** reduce estimator variance.
+- **Statistics**: workers accumulate partial sums (`sum`, `sumsq`) which are reduced to compute price, standard error, and confidence intervals.
+
+
 ![System Design](docs/images/systemDesign.png)
 
 ## Results & Performance
