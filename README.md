@@ -1,6 +1,19 @@
 # Monte Carlo Option Pricer
 
-High-performance Monte Carlo option pricer with multi-threading, SIMD optimization, and Python bindings.
+High-performance Monte Carlo option pricer in C++ with multi-threading, SIMD, variance reduction, and Python bindings.  
+Designed to explore performance, numerical stability, and scalability of Monte Carlo methods.
+
+## Results & Performance
+
+### Threading Scalability
+![Threading scalability](docs/images/threadSpeedup.png)
+
+### Convergence to Black–Scholes
+![Convergence](docs/images/convergence.png)
+
+### Variance Reduction Effectiveness
+![Variance reduction](docs/images/varianceReduction.png)
+
 
 ## Features
 

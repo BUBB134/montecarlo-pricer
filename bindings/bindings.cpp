@@ -35,6 +35,8 @@ struct PricingConfig
     double confidence_level{0.95}; // Confidence level
     bool use_antithetic{true};  // Use antithetic variates
     bool use_control_variate{false}; // Use control variate
+    std::string control_option_type{"auto"}; // Control option type: "call", "put", or "auto" (same as option_type)
+    double control_strike{0.0};  // Control strike (0.0 = auto: use same strike as K)
     std::size_t n_threads{0};   // Number of threads (0 = auto-detect)
     std::string option_type{"call"}; // "call" or "put"
 };
@@ -58,8 +60,8 @@ public:
         
         if (config.use_control_variate)
         {
-            auto control_payoff = create_payoff(config);
-            double control_analytical = compute_analytical_price(config);
+            auto control_payoff = create_control_payoff(config);
+            double control_analytical = compute_control_analytical_price(config);
             
             return pricer_->price_by_mc(
                 *payoff, config.S0, config.r, config.sigma, config.T,
@@ -85,8 +87,8 @@ public:
         
         if (config.use_control_variate)
         {
-            auto control_payoff = create_payoff(config);
-            double control_analytical = compute_analytical_price(config);
+            auto control_payoff = create_control_payoff(config);
+            double control_analytical = compute_control_analytical_price(config);
             
             return pricer_->price_by_mc_parallel(
                 *payoff, config.S0, config.r, config.sigma, config.T,
@@ -177,6 +179,46 @@ private:
             throw std::runtime_error("Unknown option type: " + config.option_type);
     }
 
+    std::unique_ptr<Payoff> create_control_payoff(const PricingConfig& config)
+    {
+        std::string control_type = config.control_option_type;
+        
+        // Auto mode: use same option type (different strike if specified)
+        if (control_type == "auto") {
+            control_type = config.option_type;
+        }
+        
+        // Determine control strike: use control_strike if set, otherwise use K
+        double strike = (config.control_strike > 0.0) ? config.control_strike : config.K;
+        
+        if (control_type == "call")
+            return make_call(strike);
+        else if (control_type == "put")
+            return make_put(strike);
+        else
+            throw std::runtime_error("Unknown control option type: " + control_type);
+    }
+
+    double compute_control_analytical_price(const PricingConfig& config)
+    {
+        std::string control_type = config.control_option_type;
+        
+        // Auto mode: use same option type
+        if (control_type == "auto") {
+            control_type = config.option_type;
+        }
+        
+        // Determine control strike: use control_strike if set, otherwise use K
+        double strike = (config.control_strike > 0.0) ? config.control_strike : config.K;
+        
+        if (control_type == "call")
+            return black_scholes_call_price(config.S0, strike, config.r, config.sigma, config.T);
+        else if (control_type == "put")
+            return black_scholes_put_price(config.S0, strike, config.r, config.sigma, config.T);
+        else
+            throw std::runtime_error("Unknown control option type: " + control_type);
+    }
+
     double compute_analytical_price(const PricingConfig& config)
     {
         if (config.option_type == "call")
@@ -204,6 +246,8 @@ PYBIND11_MODULE(montecarlo_pricer, m)
         .def_readwrite("confidence_level", &PricingConfig::confidence_level, "Confidence level for CI")
         .def_readwrite("use_antithetic", &PricingConfig::use_antithetic, "Use antithetic variates")
         .def_readwrite("use_control_variate", &PricingConfig::use_control_variate, "Use control variate")
+        .def_readwrite("control_option_type", &PricingConfig::control_option_type, "Control variate option type: 'call', 'put', or 'auto' (same type)")
+        .def_readwrite("control_strike", &PricingConfig::control_strike, "Control variate strike (0.0=auto: use K)")
         .def_readwrite("n_threads", &PricingConfig::n_threads, "Number of threads (0=auto)")
         .def_readwrite("option_type", &PricingConfig::option_type, "Option type: 'call' or 'put'")
         .def("__repr__", [](const PricingConfig &c) {

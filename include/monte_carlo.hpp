@@ -66,6 +66,8 @@ namespace montecarlo
             double sum{0.0};
             double sum_squared{0.0};
             double control_sum{0.0};
+            double sum_product{0.0};  // For Cov(payoff, control)
+            double control_sum_squared{0.0};  // For Var(control)
             std::size_t effective_samples{0};
         };
 

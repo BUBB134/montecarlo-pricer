@@ -35,6 +35,8 @@ namespace montecarlo
         double sum = 0.0;
         double sum_squared = 0.0;
         double control_sum = 0.0;
+        double sum_product = 0.0;  // For Cov(payoff, control)
+        double control_sum_squared = 0.0;  // For Var(control)
         std::size_t effective_samples = n_paths;
 
         const double drift = (r - 0.5 * sigma * sigma) * T;
@@ -55,7 +57,10 @@ namespace montecarlo
                 if (use_control_variate && control_payoff)
                 {
                     double control_value = (*control_payoff)(ST);
-                    control_sum += discount * control_value;
+                    double disc_control = discount * control_value;
+                    control_sum += disc_control;
+                    sum_product += disc * disc_control;
+                    control_sum_squared += disc_control * disc_control;
                 }
             }
         }
@@ -88,6 +93,8 @@ namespace montecarlo
                     double control2 = (*control_payoff)(ST2);
                     double control_pair_avg = (discount * control1 + discount * control2) / 2.0;
                     control_sum += control_pair_avg;
+                    sum_product += pair_avg * control_pair_avg;
+                    control_sum_squared += control_pair_avg * control_pair_avg;
                 }
             }
 
@@ -104,7 +111,10 @@ namespace montecarlo
                 if (use_control_variate && control_payoff)
                 {
                     double control_value = (*control_payoff)(ST);
-                    control_sum += discount * control_value;
+                    double disc_control = discount * control_value;
+                    control_sum += disc_control;
+                    sum_product += disc * disc_control;
+                    control_sum_squared += disc_control * disc_control;
                 }
             }
 
@@ -121,17 +131,19 @@ namespace montecarlo
             double control_mean_mc = control_sum / static_cast<double>(effective_samples);
             
             // Compute optimal β coefficient using covariance method
-            // Note: Using β=1.0 with same payoff as control is a SANITY CHECK, not variance reduction
-            // True variance reduction requires β = Cov(X,Y)/Var(Y) with different control
-            double beta = 1.0;  
+            // β_optimal = Cov(payoff, control) / Var(control)
+            double mean_payoff = sum / static_cast<double>(effective_samples);
+            double cov = (sum_product / static_cast<double>(effective_samples)) - mean_payoff * control_mean_mc;
+            double var_control = (control_sum_squared / static_cast<double>(effective_samples)) - control_mean_mc * control_mean_mc;
+            double beta = (var_control > 1e-14) ? (cov / var_control) : 1.0;  
             
             // Store variance before control variate for comparison
             if (effective_samples > 1) {
-                variance_without_cv = (sum_squared - static_cast<double>(effective_samples) * mean * mean) / 
+                variance_without_cv = (sum_squared - static_cast<double>(effective_samples) * mean_payoff * mean_payoff) / 
                                      static_cast<double>(effective_samples - 1);
             }
             
-            mean = mean + beta * (control_payoff_analytical - control_mean_mc);
+            mean = mean_payoff + beta * (control_payoff_analytical - control_mean_mc);
             result.control_payoff_mc = control_mean_mc;
             result.control_payoff_analytical = control_payoff_analytical;
             result.control_variate_used = true;
@@ -151,8 +163,6 @@ namespace montecarlo
             // Compute variance reduction factor if control variate was used
             if (result.control_variate_used && variance_without_cv > 0.0)
             {
-                // Note: When using same payoff as control with β=1, this shows NO variance reduction
-                // because we're just correcting for Monte Carlo error in estimating the mean
                 result.variance_reduction_factor = variance_without_cv / std::max(variance, 1e-14);
             }
         }
@@ -192,6 +202,8 @@ namespace montecarlo
                                     uint64_t thread_seed)
     {
         ThreadWorkerResult result;
+        result.sum_product = 0.0;
+        result.control_sum_squared = 0.0;
 
         // Create independent RNG for this thread
         RNG thread_rng(thread_seed);
@@ -251,7 +263,10 @@ namespace montecarlo
                     for (std::size_t i = 0; i < BATCH_SIZE; ++i)
                     {
                         double control_value = (*control_payoff)(ST_batch[i]);
-                        result.control_sum += discount * control_value;
+                        double disc_control = discount * control_value;
+                        result.control_sum += disc_control;
+                        result.sum_product += disc_batch[i] * disc_control;
+                        result.control_sum_squared += disc_control * disc_control;
                     }
                 }
             }
@@ -269,7 +284,10 @@ namespace montecarlo
                 if (use_control_variate && control_payoff)
                 {
                     double control_value = (*control_payoff)(ST);
-                    result.control_sum += discount * control_value;
+                    double disc_control = discount * control_value;
+                    result.control_sum += disc_control;
+                    result.sum_product += disc * disc_control;
+                    result.control_sum_squared += disc_control * disc_control;
                 }
             }
             result.effective_samples = n_paths;
@@ -326,8 +344,13 @@ namespace montecarlo
                     {
                         double control1 = (*control_payoff)(ST1_batch[i]);
                         double control2 = (*control_payoff)(ST2_batch[i]);
+                        double disc1 = discount * payoff1_batch[i];
+                        double disc2 = discount * payoff2_batch[i];
+                        double pair_avg = (disc1 + disc2) / 2.0;
                         double control_pair_avg = (discount * control1 + discount * control2) / 2.0;
                         result.control_sum += control_pair_avg;
+                        result.sum_product += pair_avg * control_pair_avg;
+                        result.control_sum_squared += control_pair_avg * control_pair_avg;
                     }
                 }
             }
@@ -355,6 +378,8 @@ namespace montecarlo
                     double control2 = (*control_payoff)(ST2);
                     double control_pair_avg = (discount * control1 + discount * control2) / 2.0;
                     result.control_sum += control_pair_avg;
+                    result.sum_product += pair_avg * control_pair_avg;
+                    result.control_sum_squared += control_pair_avg * control_pair_avg;
                 }
             }
 
@@ -371,7 +396,10 @@ namespace montecarlo
                 if (use_control_variate && control_payoff)
                 {
                     double control_value = (*control_payoff)(ST);
-                    result.control_sum += discount * control_value;
+                    double disc_control = discount * control_value;
+                    result.control_sum += disc_control;
+                    result.sum_product += disc * disc_control;
+                    result.control_sum_squared += disc_control * disc_control;
                 }
             }
 
@@ -444,6 +472,8 @@ namespace montecarlo
         double sum = 0.0;
         double sum_squared = 0.0;
         double control_sum = 0.0;
+        double sum_product = 0.0;
+        double control_sum_squared = 0.0;
         std::size_t effective_samples = 0;
 
         for (const auto &thread_result : thread_results)
@@ -451,6 +481,8 @@ namespace montecarlo
             sum += thread_result.sum;
             sum_squared += thread_result.sum_squared;
             control_sum += thread_result.control_sum;
+            sum_product += thread_result.sum_product;
+            control_sum_squared += thread_result.control_sum_squared;
             effective_samples += thread_result.effective_samples;
         }
 
@@ -462,16 +494,19 @@ namespace montecarlo
         {
             double control_mean_mc = control_sum / static_cast<double>(effective_samples);
             
-            // Note: Using β=1.0 with same payoff as control is a SANITY CHECK, not variance reduction
-            double beta = 1.0;  
+            // Compute optimal β coefficient: β = Cov(payoff, control) / Var(control)
+            double mean_payoff = sum / static_cast<double>(effective_samples);
+            double cov = (sum_product / static_cast<double>(effective_samples)) - mean_payoff * control_mean_mc;
+            double var_control = (control_sum_squared / static_cast<double>(effective_samples)) - control_mean_mc * control_mean_mc;
+            double beta = (var_control > 1e-14) ? (cov / var_control) : 1.0;  
             
             // Store variance before control variate
             if (effective_samples > 1) {
-                variance_without_cv = (sum_squared - static_cast<double>(effective_samples) * mean * mean) / 
+                variance_without_cv = (sum_squared - static_cast<double>(effective_samples) * mean_payoff * mean_payoff) / 
                                      static_cast<double>(effective_samples - 1);
             }
             
-            mean = mean + beta * (control_payoff_analytical - control_mean_mc);
+            mean = mean_payoff + beta * (control_payoff_analytical - control_mean_mc);
             result.control_payoff_mc = control_mean_mc;
             result.control_payoff_analytical = control_payoff_analytical;
             result.control_variate_used = true;
